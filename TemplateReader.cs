@@ -8,24 +8,15 @@ using System.Threading.Tasks;
 
 namespace SongStatus
 {
-    public struct TemplateResponse
+    public struct Template
     {
-        public string Text;
-        public string StatusPath;
-        public bool IsDefault;
+        public readonly string Text;
+        public readonly string StatusPath;
 
-        public TemplateResponse(string text, string statusPath)
+        public Template(string text, string statusPath)
         {
             Text = text;
             StatusPath = statusPath;
-            IsDefault = true;
-        }
-
-        public TemplateResponse(string text, string statusPath, bool isDefault)
-        {
-            Text = text;
-            StatusPath = statusPath;
-            IsDefault = isDefault;
         }
     }
 
@@ -42,41 +33,50 @@ namespace SongStatus
             "This line will only appear when there is a sub name: songSubName}",
             "{[isNoFail] }{[isMirrored] }");
 
+        /// <summary>
+        /// Create the template file if it doesn't exist
+        /// </summary>
         public static void EnsureTemplateExists()
         {
             if (!File.Exists(_templatePath))
-            {
                 File.WriteAllText(_templatePath, _defaultTemplate);
-            }
         }
 
-        public static TemplateResponse ReadTemplate()
+        /// <summary>
+        /// Read the template file and parse it into text and path
+        /// </summary>
+        /// <returns>Template object</returns>
+        public static Template ReadTemplate()
         {
             string templateText = File.ReadAllText(_templatePath);
-            TemplateResponse resp = ParseStatusPath(templateText);
+            Template template = ParseTemplate(templateText);
 
-            return resp;
+            return template;
         }
 
-        public static TemplateResponse ParseStatusPath(string templateText)
+        /// <summary>
+        /// Parse the a template string into text and path
+        /// </summary>
+        /// <param name="templateText"></param>
+        /// <returns>Template object</returns>
+        public static Template ParseTemplate(string templateText)
         {
-            TemplateResponse defaultResponse = new TemplateResponse(templateText, _defaultStatusPath);
+            Template defaultTemplate = new Template(templateText, _defaultStatusPath);
 
             var lines = Regex.Split(templateText, "\r\n|\r|\n");
             if (lines.Length == 0)
-                return defaultResponse;
+                return defaultTemplate;
 
             string[] sep = lines[0].Split('=');
             if (sep.Length <= 1)
-                return defaultResponse;
+                return defaultTemplate;
 
             if (!string.Equals(sep[0], "path", StringComparison.OrdinalIgnoreCase))
-                return defaultResponse;
+                return defaultTemplate;
 
-            return new TemplateResponse(
+            return new Template(
                 string.Join(Environment.NewLine, lines.Skip(1)),
-                sep[1],
-                false
+                sep[1]
             );
         }
     }
