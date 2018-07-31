@@ -10,16 +10,16 @@ using UnityEngine.SceneManagement;
 namespace SongStatus
 {
     public class Plugin : IPlugin
-	{
-		private const string MenuSceneName = "Menu";
-		private const string GameSceneName = "StandardLevel";
+    {
+        private const string MenuSceneName = "Menu";
+        private const string GameSceneName = "StandardLevel";
 
-		private MainGameSceneSetupData _mainSetupData;
-		private bool _init;
+        private MainGameSceneSetupData _mainSetupData;
+        private bool _init;
         private StatusWriter _writer;
 
         public string Name { get => "Song Status"; }
-		public string Version { get => "v1.4"; }
+        public string Version { get => "v1.4"; }
 
         public void UpdateTemplate()
         {
@@ -31,25 +31,25 @@ namespace SongStatus
             _writer = new StatusWriter(template);
         }
 
-		public void OnApplicationStart()
-		{
-			if (_init) return;
-			_init = true;
+        public void OnApplicationStart()
+        {
+            if (_init) return;
+            _init = true;
 
-			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
+            SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 
             UpdateTemplate();
             _writer.WriteEmpty();
         }
 
-		public void OnApplicationQuit()
-		{
-			SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
+        public void OnApplicationQuit()
+        {
+            SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
             _writer.WriteEmpty();
-		}
+        }
 
-		private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
-		{
+        private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
+        {
             if (newScene.name == MenuSceneName)
             {
                 // Menu scene loaded
@@ -93,41 +93,41 @@ namespace SongStatus
             _writer.Write();
         }
 
-		public void OnLevelWasLoaded(int level)
-		{
+        public void OnLevelWasLoaded(int level)
+        {
 
-		}
+        }
 
-		public void OnLevelWasInitialized(int level)
-		{
+        public void OnLevelWasInitialized(int level)
+        {
 
-		}
+        }
 
-		public void OnUpdate()
-		{
+        public void OnUpdate()
+        {
 
-		}
+        }
 
-		public void OnFixedUpdate()
-		{
+        public void OnFixedUpdate()
+        {
 
-		}
+        }
 
-		public static string GetGameplayModeName(GameplayMode gameplayMode)
-		{
-			switch (gameplayMode)
-			{
-				case GameplayMode.SoloStandard:
-					return "Solo Standard";
-				case GameplayMode.SoloOneSaber:
-					return "One Saber";
-				case GameplayMode.SoloNoArrows:
-					return "No Arrows";
-				case GameplayMode.PartyStandard:
-					return "Party";
-				default:
-					return "Solo Standard";
-			}
-		}
-	}
+        public static string GetGameplayModeName(GameplayMode gameplayMode)
+        {
+            switch (gameplayMode)
+            {
+                case GameplayMode.SoloStandard:
+                    return "Solo Standard";
+                case GameplayMode.SoloOneSaber:
+                    return "One Saber";
+                case GameplayMode.SoloNoArrows:
+                    return "No Arrows";
+                case GameplayMode.PartyStandard:
+                    return "Party";
+                default:
+                    return "Solo Standard";
+            }
+        }
+    }
 }
