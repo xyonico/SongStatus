@@ -1,14 +1,22 @@
 using System;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using IllusionPlugin;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using WebSocketSharp.Server;
 
 namespace SongStatus
 {
+    public class Broadcast : WebSocketBehavior
+    {
+        protected override void OnOpen()
+        {
+            base.OnOpen();
+            Logger.Log("WebSocket Client Connected!");
+        }
+    }
+
     public class Plugin : IPlugin
     {
         private const string MenuSceneName = "Menu";
@@ -17,6 +25,9 @@ namespace SongStatus
         private MainGameSceneSetupData _mainSetupData;
         private bool _init;
         private StatusWriter _writer;
+
+        private WebSocketServer _wss;
+        private bool _wsEnabled = false;
 
         public string Name { get => "Song Status"; }
         public string Version { get => "v1.4"; }
@@ -28,7 +39,10 @@ namespace SongStatus
             TemplateReader.EnsureTemplateExists();
             Template template = TemplateReader.ReadTemplate();
 
-            _writer = new StatusWriter(template);
+            if (_wsEnabled)
+                _writer = new StatusWriter(template);
+            else
+                _writer = new StatusWriter(template, _wss);
         }
 
         public void OnApplicationStart()
@@ -38,6 +52,22 @@ namespace SongStatus
 
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 
+            int wsPort = PortManager.FindAvailablePort(3333);
+            if (wsPort == 0)
+            {
+                // Couldn't find free port
+                Logger.Log("Could not find free port");
+            }
+            else
+            {
+                Logger.Log("Starting WebSocket Server on port " + wsPort);
+                _wss = new WebSocketServer(wsPort);
+                _wss.AddWebSocketService<Broadcast>("/");
+                _wss.Start();
+
+                _wsEnabled = true;
+            }
+
             UpdateTemplate();
             _writer.WriteEmpty();
         }
@@ -46,6 +76,7 @@ namespace SongStatus
         {
             SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
             _writer.WriteEmpty();
+            _wss.Stop();
         }
 
         private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
