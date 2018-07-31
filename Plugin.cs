@@ -9,164 +9,91 @@ using UnityEngine.SceneManagement;
 
 namespace SongStatus
 {
-	public class Plugin : IPlugin
+    public class Plugin : IPlugin
 	{
 		private const string MenuSceneName = "Menu";
 		private const string GameSceneName = "StandardLevel";
-		
-		private readonly string _defaultStatusPath = Path.Combine(Environment.CurrentDirectory, "status.txt");
-		private readonly string _defaultTemplate = string.Join(
-			Environment.NewLine,
-			"path=status.txt",
-			"Playing: {songName}{ songSubName} - {authorName}",
-			"{gamemode} | {difficulty} | BPM: {beatsPerMinute}{",
-			"This line will only appear when there is a sub name: songSubName}",
-			"{[isNoFail] }{[isMirrored] }");
 
 		private MainGameSceneSetupData _mainSetupData;
 		private bool _init;
-		private readonly string _templatePath = Path.Combine(Environment.CurrentDirectory, "statusTemplate.txt");
-		private string _statusPath;
+        private StatusWriter _writer;
 
-		public string Name
-		{
-			get { return "Song Status"; }
-		}
+        public string Name { get => "Song Status"; }
+		public string Version { get => "v1.4"; }
 
-		public string Version
-		{
-			get { return "v1.3"; }
-		}
+        public static void Log<T>(T input) => Console.WriteLine("[Song Status] " + input.ToString());
+
+        public void UpdateTemplate()
+        {
+            Log("Reading Template");
+
+            TemplateReader.EnsureTemplateExists();
+            TemplateResponse template = TemplateReader.ReadTemplate();
+
+            _writer = new StatusWriter(template);
+        }
 
 		public void OnApplicationStart()
 		{
 			if (_init) return;
 			_init = true;
+
 			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
-			
-			_statusPath = _defaultStatusPath;
-			
-			if (!File.Exists(_templatePath))
-			{
-				File.WriteAllText(_templatePath, _defaultTemplate);
-			}
-		}
+
+            UpdateTemplate();
+            _writer.WriteEmpty();
+        }
 
 		public void OnApplicationQuit()
 		{
 			SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
-			File.WriteAllText(_statusPath, string.Empty);
+            _writer.WriteEmpty();
 		}
 
 		private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
 		{
-			string templateText;
-			if (!File.Exists(_templatePath))
-			{
-				templateText = _defaultTemplate;
-				File.WriteAllText(_templatePath, templateText);
-			}
-			else
-			{
-				templateText = File.ReadAllText(_templatePath);
-			}
+            if (newScene.name == MenuSceneName)
+            {
+                // Menu scene loaded
+                _writer.WriteEmpty();
+                return;
+            }
 
-			templateText = ReadStatusPath(templateText);
-			
-			if (newScene.name == MenuSceneName)
-			{
-				//Menu scene loaded
-				File.WriteAllText(_statusPath, string.Empty);
-			}
-			else if (newScene.name == GameSceneName)
-			{
-				_mainSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
-				if (_mainSetupData == null)
-				{
-					Console.WriteLine("Song Status: Error finding the scriptable objects required to update presence.");
-					return;
-				}
+            if (newScene.name != GameSceneName)
+                return;
 
-				//Main game scene loaded
+            // Only execute when main game scene is loaded
+            _mainSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
+            if (_mainSetupData == null)
+            {
+                Log("Error finding the scriptable objects required to update presence.");
+                return;
+            }
 
-                var diff = _mainSetupData.difficultyLevel;
-                var song = diff.level;
+            var diff = _mainSetupData.difficultyLevel;
+            var song = diff.level;
 
-				var gameplayModeText = GetGameplayModeName(_mainSetupData.gameplayMode);
-				var keywords = templateText.Split('{', '}');
-				
-				templateText = ReplaceKeyword("songName", song.songName, keywords, templateText);
-				templateText = ReplaceKeyword("songSubName", song.songSubName, keywords, templateText);
-				templateText = ReplaceKeyword("authorName", song.songAuthorName, keywords, templateText);
-				templateText = ReplaceKeyword("gamemode", gameplayModeText, keywords, templateText);
-				templateText = ReplaceKeyword("difficulty", diff.difficulty.Name(), keywords, templateText);
-				templateText = ReplaceKeyword("isNoFail",
-					_mainSetupData.gameplayOptions.noEnergy ? "No Fail" : string.Empty, keywords, templateText);
-				templateText = ReplaceKeyword("isMirrored",
-					_mainSetupData.gameplayOptions.mirror ? "Mirrored" : string.Empty, keywords, templateText);
-				templateText = ReplaceKeyword("beatsPerMinute",
-					song.beatsPerMinute.ToString(CultureInfo.InvariantCulture), keywords, templateText);
-				templateText = ReplaceKeyword("notesCount",
-					diff.beatmapData.notesCount.ToString(CultureInfo.InvariantCulture), keywords, templateText);
-				templateText = ReplaceKeyword("obstaclesCount",
-					diff.beatmapData.obstaclesCount.ToString(CultureInfo.InvariantCulture), keywords, templateText);
-				templateText = ReplaceKeyword("environmentName", song.environmentSceneInfo.sceneName, keywords,
-					templateText);
+            string isNoFail = _mainSetupData.gameplayOptions.noEnergy ? "No Fail" : string.Empty;
+            string isMirrored = _mainSetupData.gameplayOptions.mirror ? "Mirrored" : string.Empty;
 
-				File.WriteAllText(_statusPath, templateText);
-			}
-		}
+            string beatsPerMinute = song.beatsPerMinute.ToString(CultureInfo.InvariantCulture);
+            string notesCount = diff.beatmapData.notesCount.ToString(CultureInfo.InvariantCulture);
+            string obstaclesCount = diff.beatmapData.obstaclesCount.ToString(CultureInfo.InvariantCulture);
 
-		private string ReplaceKeyword(string keyword, string replaceKeyword, string[] keywords, string text)
-		{
-			if (!keywords.Any(x => x.Contains(keyword))) return text;
-			var containingKeywords = keywords.Where(x => x.Contains(keyword));
+            _writer.ReplaceKeyword("songName", song.songName);
+            _writer.ReplaceKeyword("songSubName", song.songSubName);
+            _writer.ReplaceKeyword("authorName", song.songAuthorName);
+            _writer.ReplaceKeyword("gamemode", GetGameplayModeName(_mainSetupData.gameplayMode));
+            _writer.ReplaceKeyword("difficulty", diff.difficulty.Name());
+            _writer.ReplaceKeyword("isNoFail", isNoFail);
+            _writer.ReplaceKeyword("isMirrored", isMirrored);
+            _writer.ReplaceKeyword("beatsPerMinute", beatsPerMinute);
+            _writer.ReplaceKeyword("notesCount", notesCount);
+            _writer.ReplaceKeyword("obstaclesCount", obstaclesCount);
+            _writer.ReplaceKeyword("environmentName", song.environmentSceneInfo.sceneName);
 
-			if (string.IsNullOrEmpty(replaceKeyword))
-			{
-				//If the replacement word is null or empty, we want to remove the whole bracket.
-				foreach (var containingKeyword in containingKeywords)
-				{
-					text = text.Replace("{" + containingKeyword + "}", string.Empty);
-				}
-
-				return text;
-			}
-
-			foreach (var containingKeyword in containingKeywords)
-			{
-				text = text.Replace("{" + containingKeyword + "}", containingKeyword);
-			}
-
-			text = text.Replace(keyword, replaceKeyword);
-
-			return text;
-		}
-
-		private string ReadStatusPath(string templateText)
-		{
-			var lines = Regex.Split(templateText, "\r\n|\r|\n");
-			if (lines.Length == 0)
-			{
-				_statusPath = _defaultStatusPath;
-				return templateText;
-			}
-			var sep = lines[0].Split('=');
-			if (sep.Length <= 1)
-			{
-				_statusPath = _defaultStatusPath;
-				return templateText;
-			}
-
-			if (!string.Equals(sep[0], "path", StringComparison.OrdinalIgnoreCase))
-			{
-				_statusPath = _defaultStatusPath;
-				return templateText;
-			}
-
-			_statusPath = sep[1];
-			return string.Join(Environment.NewLine, lines.Skip(1));
-		}
+            _writer.Write();
+        }
 
 		public void OnLevelWasLoaded(int level)
 		{
