@@ -21,14 +21,12 @@ namespace SongStatus
         public string Name { get => "Song Status"; }
 		public string Version { get => "v1.4"; }
 
-        public static void Log<T>(T input) => Console.WriteLine("[Song Status] " + input.ToString());
-
         public void UpdateTemplate()
         {
-            Log("Reading Template");
+            Logger.Log("Reading Template");
 
             TemplateReader.EnsureTemplateExists();
-            TemplateResponse template = TemplateReader.ReadTemplate();
+            Template template = TemplateReader.ReadTemplate();
 
             _writer = new StatusWriter(template);
         }
@@ -66,7 +64,7 @@ namespace SongStatus
             _mainSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
             if (_mainSetupData == null)
             {
-                Log("Error finding the scriptable objects required to update presence.");
+                Logger.Log("Error finding the scriptable objects required to update presence.");
                 return;
             }
 
