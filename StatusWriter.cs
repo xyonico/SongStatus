@@ -36,10 +36,25 @@ namespace SongStatus
             _wsEnabled = Path.GetExtension(_template.StatusPath) == ".html";
             _wss = wss;
 
+            if (_wsEnabled)
+                File.WriteAllText(_template.StatusPath, HTMLPage(_wss.Port));
+
             Reset();
         }
 
-        public void Reset()
+        public static string HTMLPage(int port)
+        {
+            return "<html><head><title>SongStatus</title><style>body { font-family: sans-serif; }</style></head>" +
+                "<body><p id='text'></p><script>" +
+                "let p = document.getElementById('text'); let ws = new WebSocket('ws://localhost:" + port + "'); " +
+                "ws.onmessage = ev => { p.innerHTML = ev.data.replace(/\\n/g, '<br />') }; ws.onerror = ev => { console.error(ev) }" +
+                "</script></body></html>";
+        }
+
+        /// <summary>
+        /// Reset status text to template
+        /// </summary>
+        void Reset()
         {
             _statusText = _template.Text;
         }

@@ -10,6 +10,11 @@ namespace SongStatus
 {
     public class Broadcast : WebSocketBehavior
     {
+        public Broadcast() : base()
+        {
+            this.IgnoreExtensions = true;
+        }
+
         protected override void OnOpen()
         {
             base.OnOpen();
@@ -40,9 +45,9 @@ namespace SongStatus
             Template template = TemplateReader.ReadTemplate();
 
             if (_wsEnabled)
-                _writer = new StatusWriter(template);
-            else
                 _writer = new StatusWriter(template, _wss);
+            else
+                _writer = new StatusWriter(template);
         }
 
         public void OnApplicationStart()
@@ -92,6 +97,10 @@ namespace SongStatus
                 return;
 
             // Only execute when main game scene is loaded
+
+            // Update template
+            UpdateTemplate();
+
             _mainSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
             if (_mainSetupData == null)
             {
